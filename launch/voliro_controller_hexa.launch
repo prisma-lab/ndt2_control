@@ -1,0 +1,4 @@
+<launch>
+	<rosparam file="$(find ndt2_control)/config/config_hexa.yaml"  />
+	<node name="voliro_controller_hexa" pkg="ndt2_control" type="voliro_controller_hexa" output="screen" />
+</launch>
