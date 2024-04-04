@@ -6,3 +6,4 @@ The controller node receives as input the cartesian setpoints and computes a smo
 
 Beside the cartesian control also a image based visual servoing algorithm is implented. With a camera sensor simulated in gazebo an AprilTag marker is detected and a regulation in the image space is implemented to nullify the errors in terms of pixel coordinates.
 
+
