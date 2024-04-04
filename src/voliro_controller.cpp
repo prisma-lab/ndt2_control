@@ -105,6 +105,7 @@ VOLIRO_CTRL::VOLIRO_CTRL(){
     _image_fb_sub = _nh.subscribe("/ndt2/camera/tag_pose", 1, &VOLIRO_CTRL::camera_cb, this);
     _tag_flag_sub = _nh.subscribe("/ndt2/camera/tag_flag", 1, &VOLIRO_CTRL::camera_flag_cb, this);
     _vs_sub = _nh.subscribe("/ndt2/tag_pos_px_corner", 1, &VOLIRO_CTRL::vs_cb, this);
+    _termination_sub = _nh.subscribe("/arm/termination", 1, &VOLIRO_CTRL::term_cb, this);
     _motor_vel_pub = _nh.advertise<std_msgs::Float32MultiArray> ("/ndt2/cmd/motor_vel", 0);
     _ext_force_pub = _nh.advertise<geometry_msgs::Wrench> ("/ndt2/wrench", 0);
     _motor1_tilt_pub = _nh.advertise<std_msgs::Float64> ("/tilt_motor_1/command", 0);
@@ -112,6 +113,7 @@ VOLIRO_CTRL::VOLIRO_CTRL(){
     _motor3_tilt_pub = _nh.advertise<std_msgs::Float64> ("/tilt_motor_3/command", 0);
     _motor4_tilt_pub = _nh.advertise<std_msgs::Float64> ("/tilt_motor_4/command", 0);
     _vs_completed = _nh.advertise<std_msgs::Bool> ("/ndt2/ibvs/flag", 0);
+    _ft_pub = _nh.advertise<geometry_msgs::Wrench> ("/ndt2/commands", 0);
     _first_measure = false;
 
     _trajectory = new CARTESIAN_PLANNER(_rate/2);
@@ -178,6 +180,31 @@ VOLIRO_CTRL::VOLIRO_CTRL(){
     _e_i.setZero();
     _T_drone.setIdentity();
     _vs_ok.data = false;
+
+	_ps_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/ps_uav.txt", std::ios::out);
+	_psdes_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/ps_des_uav.txt", std::ios::out);
+	_vs_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/vs_uav.txt", std::ios::out);
+	_p_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/p_uav.txt", std::ios::out);
+	_v_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/v_uav.txt", std::ios::out);
+	_rpy_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/rpy_uav.txt", std::ios::out);
+	_w_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/w_uav.txt", std::ios::out);
+}
+
+void VOLIRO_CTRL::fileclose(){
+  _p_uavFile.close();
+  _v_uavFile.close();
+  _ps_uavFile.close();
+  _psdes_uavFile.close();
+  _vs_uavFile.close();
+  _rpy_uavFile.close();
+  _w_uavFile.close();
+}
+
+void VOLIRO_CTRL::writeclass(const vector<double>& data, std::ofstream & pfs){
+	for(const auto& element : data){
+		pfs << element << ',';
+	}
+	pfs << endl;
 }
 
 void VOLIRO_CTRL::run(){
@@ -244,6 +271,10 @@ void VOLIRO_CTRL::vs_cb(std_msgs::Float64MultiArray msg){
     }
 }
 
+void VOLIRO_CTRL::term_cb(std_msgs::Bool msg){
+    _term_flag = msg.data;
+}
+
 void VOLIRO_CTRL::feedback(){
     Eigen::VectorXd vel,vel_temp;
     vel.resize(6);
@@ -291,6 +322,43 @@ void VOLIRO_CTRL::feedback(){
     vel_temp = utilities::Ad_f(_T_cb.inverse())*_local_vel_6d;
     vel << vel_temp(3), vel_temp(4), vel_temp(5), vel_temp(0), vel_temp(1), vel_temp(2);
     _s_dot = _J_image*vel; 
+
+    _uav.x.push_back(_local_pos(0));
+	_uav.y.push_back(_local_pos(1));
+	_uav.z.push_back(_local_pos(2));
+
+	Eigen::Vector3d rpy = utilities::MatToRpy(_T_drone.block<3,3>(0,0)); 
+	_uav.r.push_back(rpy(0));
+	_uav.p.push_back(rpy(1));
+	_uav.yaw.push_back(rpy(2));
+
+	_uav.vx.push_back(_local_vel_6d(3));
+	_uav.vy.push_back(_local_vel_6d(4));
+	_uav.vz.push_back(_local_vel_6d(5));
+
+	_uav.wx.push_back(_local_vel_6d(0));
+	_uav.wy.push_back(_local_vel_6d(1));
+	_uav.wz.push_back(_local_vel_6d(2));
+
+	_uav.vx1.push_back(_s_dot(0));
+	_uav.vx2.push_back(_s_dot(2));
+	_uav.vx3.push_back(_s_dot(4));
+	_uav.vx4.push_back(_s_dot(6));
+
+	_uav.vy1.push_back(_s_dot(1));
+	_uav.vy2.push_back(_s_dot(3));
+	_uav.vy3.push_back(_s_dot(5));
+	_uav.vy4.push_back(_s_dot(7));
+
+	_uav.x1.push_back(_s(0));
+	_uav.x2.push_back(_s(2));
+	_uav.x3.push_back(_s(4));
+	_uav.x4.push_back(_s(6));
+
+	_uav.y1.push_back(_s(1));
+	_uav.y2.push_back(_s(3));
+	_uav.y3.push_back(_s(5));
+	_uav.y4.push_back(_s(7));
 }
 
 // Callback arm wrench feedback
@@ -547,6 +615,16 @@ void::VOLIRO_CTRL::ibvs(){
 
     // tag 0.08 --pose des: 2.39 -0.45 -1.34
     sd << -0.146116, -0.232102,  0.156216, -0.231255,  0.158847, -0.534022,  -0.14591, -0.534183; // tag alto
+    
+    _uav.x1_des.push_back(sd(0));
+    _uav.x2_des.push_back(sd(2));
+    _uav.x3_des.push_back(sd(4));
+    _uav.x4_des.push_back(sd(6));
+
+    _uav.y1_des.push_back(sd(1));
+    _uav.y2_des.push_back(sd(3));
+    _uav.y3_des.push_back(sd(5));
+    _uav.y4_des.push_back(sd(7));
 
     e_s = -(sd -_s);
     e_sdot = (-_s_dot);
@@ -590,7 +668,7 @@ void VOLIRO_CTRL::allocation(){
     Eigen::Matrix<double, 16, 1> V_dec;
     Eigen::Matrix<double, 6, 1> FM_des;
     double Kf_inv;
-
+    int cnt = 0.0;
     ros::Rate r(_rate);
 
     A_static.row(0) << 0, -sin(_ang_mot[0]), 0, -sin(_ang_mot[1]),
@@ -633,7 +711,7 @@ void VOLIRO_CTRL::allocation(){
                        -(_c[6]*_Kq)/_Kf, _arm*pow(cos(_ang_mot[6]),2) + _arm*pow(sin(_ang_mot[6]),2),
                        -(_c[7]*_Kq)/_Kf, _arm*pow(cos(_ang_mot[7]),2) + _arm*pow(sin(_ang_mot[7]),2);
 
-
+    
     _rotors_vel.data.resize(8);
     Kf_inv = 1.0/_Kf;
 
@@ -651,12 +729,18 @@ void VOLIRO_CTRL::allocation(){
 
         FM_des.block<3,1>(0,0) = _F_des;
         FM_des.block<3,1>(3,0) = _M_des;
-        _ext_f.force.x = _F_des[0];
-        _ext_f.force.y = _F_des[1];
-        _ext_f.force.z = _F_des[2];
-        _ext_f.torque.x = _M_des[0];
-        _ext_f.torque.y = _M_des[1];
-        _ext_f.torque.z = _M_des[2];
+        _cmd_ft.force.x = _F_des[0];
+        _cmd_ft.force.y = _F_des[1];
+        _cmd_ft.force.z = _F_des[2];
+        _cmd_ft.torque.x = _M_des[0];
+        _cmd_ft.torque.y = _M_des[1];
+        _cmd_ft.torque.z = _M_des[2];
+        // _ext_f.force.x = _F_des[0];
+        // _ext_f.force.y = _F_des[1];
+        // _ext_f.force.z = _F_des[2];
+        // _ext_f.torque.x = _M_des[0];
+        // _ext_f.torque.y = _M_des[1];
+        // _ext_f.torque.z = _M_des[2];
         // _ext_force_pub.publish(_ext_f);
 
         // V_dec = A_static_pinv * (FM_des+_arm_ext_f); // <- check
@@ -709,8 +793,54 @@ void VOLIRO_CTRL::allocation(){
         _motor2_tilt_pub.publish(_tilt_m2);
         _motor3_tilt_pub.publish(_tilt_m3);
         _motor4_tilt_pub.publish(_tilt_m4);
-
+        _ft_pub.publish(_cmd_ft);
         r.sleep();
+        if(_term_flag && cnt == 0 ){
+            cnt++;
+            writeclass(_uav.x, _p_uavFile);
+            writeclass(_uav.y, _p_uavFile);
+            writeclass(_uav.z, _p_uavFile);
+
+            writeclass(_uav.vx, _v_uavFile);
+            writeclass(_uav.vy, _v_uavFile);
+            writeclass(_uav.vz, _v_uavFile);
+
+            writeclass(_uav.r, _rpy_uavFile);
+            writeclass(_uav.p, _rpy_uavFile);
+            writeclass(_uav.yaw, _rpy_uavFile);
+
+            writeclass(_uav.wx, _w_uavFile);
+            writeclass(_uav.wy, _w_uavFile);
+            writeclass(_uav.wz, _w_uavFile);
+
+            writeclass(_uav.vx1, _vs_uavFile);
+            writeclass(_uav.vy1, _vs_uavFile);
+            writeclass(_uav.vx2, _vs_uavFile);
+            writeclass(_uav.vy2, _vs_uavFile);
+            writeclass(_uav.vx3, _vs_uavFile);
+            writeclass(_uav.vy3, _vs_uavFile);
+            writeclass(_uav.vx4, _vs_uavFile);
+            writeclass(_uav.vy4, _vs_uavFile);
+
+            writeclass(_uav.x1, _ps_uavFile);
+            writeclass(_uav.y1, _ps_uavFile);
+            writeclass(_uav.x2, _ps_uavFile);
+            writeclass(_uav.y2, _ps_uavFile);
+            writeclass(_uav.x3, _ps_uavFile);
+            writeclass(_uav.y3, _ps_uavFile);
+            writeclass(_uav.x4, _ps_uavFile);
+            writeclass(_uav.y4, _ps_uavFile);
+
+            writeclass(_uav.x1_des, _psdes_uavFile);
+            writeclass(_uav.y1_des, _psdes_uavFile);
+            writeclass(_uav.x2_des, _psdes_uavFile);
+            writeclass(_uav.y2_des, _psdes_uavFile);
+            writeclass(_uav.x3_des, _psdes_uavFile);
+            writeclass(_uav.y3_des, _psdes_uavFile);
+            writeclass(_uav.x4_des, _psdes_uavFile);
+            writeclass(_uav.y4_des, _psdes_uavFile);
+            cout << "Task completed... Please press Ctrl+c to terminate ROS node..."<<endl;
+        }
     }
 
 }
