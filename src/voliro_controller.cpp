@@ -188,6 +188,9 @@ VOLIRO_CTRL::VOLIRO_CTRL(){
 	_v_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/v_uav.txt", std::ios::out);
 	_rpy_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/rpy_uav.txt", std::ios::out);
 	_w_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/w_uav.txt", std::ios::out);
+	_es_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/es_uav.txt", std::ios::out);
+	_eds_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/eds_uav.txt", std::ios::out);
+	_eis_uavFile.open("/home/simone/uav_ws/src/ndt2_arm_control/logger/eis_uav.txt", std::ios::out);
 }
 
 void VOLIRO_CTRL::fileclose(){
@@ -198,6 +201,9 @@ void VOLIRO_CTRL::fileclose(){
   _vs_uavFile.close();
   _rpy_uavFile.close();
   _w_uavFile.close();
+  _es_uavFile.close();
+  _eds_uavFile.close();
+  _eis_uavFile.close();
 }
 
 void VOLIRO_CTRL::writeclass(const vector<double>& data, std::ofstream & pfs){
@@ -430,10 +436,11 @@ void VOLIRO_CTRL::desired_trajectory(){
             roll = 0.0;
             pitch = 0.0;
             yaw = 0.0;
-            cout<<"des pos: "<<x<<", "<<y<<", "<<z<<endl;
-            cout<<"des or: "<<roll<<", "<<pitch<<", "<<yaw<<endl;
-            cout << "Trajectory duration: " << endl;
-            scanf("%lf", &t);
+            // cout<<"des pos: "<<x<<", "<<y<<", "<<z<<endl;
+            // cout<<"des or: "<<roll<<", "<<pitch<<", "<<yaw<<endl;
+            // cout << "Trajectory duration: " << endl;
+            // scanf("%lf", &t);
+            t = 40;
             cont++;
         }
         //
@@ -629,6 +636,34 @@ void::VOLIRO_CTRL::ibvs(){
     e_s = -(sd -_s);
     e_sdot = (-_s_dot);
     _e_i = _e_i+e_s*0.01;
+
+    _uav.es1.push_back(e_s(0));
+	_uav.es2.push_back(e_s(1));
+	_uav.es3.push_back(e_s(2));
+	_uav.es4.push_back(e_s(3));
+	_uav.es5.push_back(e_s(4));
+	_uav.es6.push_back(e_s(5));
+	_uav.es7.push_back(e_s(6));
+	_uav.es8.push_back(e_s(7));
+
+    _uav.eds1.push_back(e_sdot(0));
+	_uav.eds2.push_back(e_sdot(1));
+	_uav.eds3.push_back(e_sdot(2));
+	_uav.eds4.push_back(e_sdot(3));
+	_uav.eds5.push_back(e_sdot(4));
+	_uav.eds6.push_back(e_sdot(5));
+	_uav.eds7.push_back(e_sdot(6));
+	_uav.eds8.push_back(e_sdot(7));
+
+    _uav.eis1.push_back(_e_i(0));
+	_uav.eis2.push_back(_e_i(1));
+	_uav.eis3.push_back(_e_i(2));
+	_uav.eis4.push_back(_e_i(3));
+	_uav.eis5.push_back(_e_i(4));
+	_uav.eis6.push_back(_e_i(5));
+	_uav.eis7.push_back(_e_i(6));
+	_uav.eis8.push_back(_e_i(7));
+
     kpc.resize(8,8);
     kdc.resize(8,8);
     kic.resize(8,8);
@@ -839,6 +874,33 @@ void VOLIRO_CTRL::allocation(){
             writeclass(_uav.y3_des, _psdes_uavFile);
             writeclass(_uav.x4_des, _psdes_uavFile);
             writeclass(_uav.y4_des, _psdes_uavFile);
+
+            writeclass(_uav.es1, _es_uavFile);
+            writeclass(_uav.es2, _es_uavFile);
+            writeclass(_uav.es3, _es_uavFile);
+            writeclass(_uav.es4, _es_uavFile);
+            writeclass(_uav.es5, _es_uavFile);
+            writeclass(_uav.es6, _es_uavFile);
+            writeclass(_uav.es7, _es_uavFile);
+            writeclass(_uav.es8, _es_uavFile);
+
+            writeclass(_uav.eds1, _eds_uavFile);
+            writeclass(_uav.eds2, _eds_uavFile);
+            writeclass(_uav.eds3, _eds_uavFile);
+            writeclass(_uav.eds4, _eds_uavFile);
+            writeclass(_uav.eds5, _eds_uavFile);
+            writeclass(_uav.eds6, _eds_uavFile);
+            writeclass(_uav.eds7, _eds_uavFile);
+            writeclass(_uav.eds8, _eds_uavFile);
+
+            writeclass(_uav.eis1, _eis_uavFile);
+            writeclass(_uav.eis2, _eis_uavFile);
+            writeclass(_uav.eis3, _eis_uavFile);
+            writeclass(_uav.eis4, _eis_uavFile);
+            writeclass(_uav.eis5, _eis_uavFile);
+            writeclass(_uav.eis6, _eis_uavFile);
+            writeclass(_uav.eis7, _eis_uavFile);
+            writeclass(_uav.eis8, _eis_uavFile);
             cout << "Task completed... Please press Ctrl+c to terminate ROS node..."<<endl;
         }
     }

@@ -68,6 +68,33 @@ public:
     vector<double> y2_des;
     vector<double> y3_des;
     vector<double> y4_des;
+
+    vector<double> es1;
+    vector<double> es2;
+    vector<double> es3;
+    vector<double> es4;
+    vector<double> es5;
+    vector<double> es6;
+    vector<double> es7;
+    vector<double> es8;
+
+    vector<double> eds1;
+    vector<double> eds2;
+    vector<double> eds3;
+    vector<double> eds4;
+    vector<double> eds5;
+    vector<double> eds6;
+    vector<double> eds7;
+    vector<double> eds8;
+
+    vector<double> eis1;
+    vector<double> eis2;
+    vector<double> eis3;
+    vector<double> eis4;
+    vector<double> eis5;
+    vector<double> eis6;
+    vector<double> eis7;
+    vector<double> eis8;
 };
 
 class VOLIRO_CTRL{
@@ -190,7 +217,7 @@ class VOLIRO_CTRL{
         Eigen::VectorXd _tag_corners, _e_i;
         std_msgs::Bool _vs_ok;
 
-        std::ofstream _p_uavFile, _v_uavFile, _rpy_uavFile, _w_uavFile, _vs_uavFile, _ps_uavFile, _psdes_uavFile;
+        std::ofstream _p_uavFile, _v_uavFile, _rpy_uavFile, _w_uavFile, _vs_uavFile, _ps_uavFile, _psdes_uavFile, _es_uavFile, _eds_uavFile, _eis_uavFile;
         saved_data _uav;
         bool _term_flag;
 
